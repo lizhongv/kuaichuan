@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#2563EB">
+<title>快传 · 手机互传</title>
+<style>
+  :root{--brand:#2563EB;--brand-2:#4F46E5;--ok:#16A34A;--err:#DC2626;--text:#0F172A;--muted:#64748B;--line:#E2E8F0;--bg:#F1F5F9}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text)}
+  header{background:linear-gradient(135deg,var(--brand),var(--brand-2));color:#fff;padding:22px 20px 46px}
+  header .logo{display:flex;align-items:center;gap:10px;font-size:21px;font-weight:700}
+  header .logo i{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.18);font-style:normal}
+  header .sub{margin-top:8px;font-size:13px;opacity:.88}
+  main{margin:-30px 14px 24px}
+  .card{background:#fff;border-radius:16px;padding:18px;margin-bottom:14px;box-shadow:0 6px 20px rgba(15,23,42,.06)}
+  h2{margin:0 0 4px;font-size:17px}.desc{margin:0 0 14px;font-size:13px;color:var(--muted)}
+  .pick{display:flex;flex-direction:column;align-items:center;gap:6px;border:2px dashed #BFDBFE;background:#EFF6FF;border-radius:14px;padding:22px 10px;color:var(--brand);font-weight:600;font-size:16px}
+  .pick small{color:var(--muted);font-weight:400;font-size:12px}
+  .btn{width:100%;padding:13px;border:none;border-radius:12px;font-size:16px;font-weight:600;background:#EEF2FF;color:var(--brand)}
+  .item{padding:12px 0;border-bottom:1px solid var(--line)}.item:last-child{border-bottom:none}
+  .row{display:flex;justify-content:space-between;align-items:center;gap:12px}
+  .name{font-size:14px;word-break:break-all}.meta{font-size:12px;color:var(--muted);margin-top:3px}
+  .bar{height:6px;background:var(--line);border-radius:3px;margin-top:8px;overflow:hidden}
+  .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--brand),var(--brand-2));transition:width .2s}
+  .ok{color:var(--ok)}.err{color:var(--err)}
+  .summary{margin-top:12px;font-size:14px;font-weight:600}
+  a.dl{flex:none;padding:8px 14px;border-radius:10px;background:var(--brand);color:#fff;text-decoration:none;font-size:14px;font-weight:600}
+  .empty{text-align:center;color:var(--muted);font-size:13px;padding:14px 0}
+  footer{text-align:center;color:var(--muted);font-size:12px;padding:0 20px 26px;line-height:1.7}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"><i>⇅</i>快传 · 手机互传</div>
+  <div class="sub">已连接电脑：__HOST__</div>
+</header>
+<main>
+  <section class="card">
+    <h2>传到电脑</h2>
+    <p class="desc">文件将保存到电脑的「__UPDIR__」文件夹</p>
+    <input id="picker" type="file" multiple hidden>
+    <label class="pick" for="picker">＋ 选择文件或照片<small>支持多选，可一次上传多个</small></label>
+    <div id="summary" class="summary"></div>
+    <div id="uploads"></div>
+  </section>
+  <section class="card">
+    <h2>从电脑下载</h2>
+    <p class="desc">电脑把文件放进共享文件夹后，点「刷新列表」</p>
+    <div id="list"><div class="empty">加载中…</div></div>
+    <button class="btn" onclick="loadList()">刷新列表</button>
+  </section>
+</main>
+<footer>在微信中打开无法下载时，请点右上角「在浏览器中打开」<br>文件仅在局域网内点对点传输，不经过任何服务器</footer>
+<script>
+const KEY = new URLSearchParams(location.search).get('k');
+const fmt = n => n < 1024 ? n + ' B' : n < 1048576 ? (n / 1024).toFixed(1) + ' KB'
+  : n < 1073741824 ? (n / 1048576).toFixed(1) + ' MB' : (n / 1073741824).toFixed(2) + ' GB';
+const esc = s => s.replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+
+document.getElementById('picker').onchange = async e => {
+  const files = [...e.target.files];
+  if (!files.length) return;
+  const box = document.getElementById('uploads'), sum = document.getElementById('summary');
+  box.innerHTML = '';
+  const rows = files.map(f => {
+    const el = document.createElement('div');
+    el.className = 'item';
+    el.innerHTML = '<div class="row"><span class="name">' + esc(f.name) + '</span><span class="meta">' + fmt(f.size)
+      + '</span></div><div class="bar"><i></i></div><div class="meta st">等待上传</div>';
+    box.appendChild(el);
+    return el;
+  });
+  let ok = 0;
+  for (let i = 0; i < files.length; i++) {
+    sum.textContent = '正在上传 ' + (i + 1) + ' / ' + files.length;
+    try { await upload(files[i], rows[i]); ok++; }
+    catch (err) { rows[i].querySelector('.st').innerHTML = '<span class="err">失败：' + err + '</span>'; }
+  }
+  sum.innerHTML = ok === files.length ? '<span class="ok">✔ 全部上传完成（' + ok + ' 个）</span>'
+    : '<span class="err">完成 ' + ok + ' / ' + files.length + '，失败的可重新选择上传</span>';
+  e.target.value = '';
+};
+
+function upload(file, el) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest(), bar = el.querySelector('i'), st = el.querySelector('.st'), t0 = Date.now();
+    xhr.open('POST', '/upload?k=' + KEY + '&name=' + encodeURIComponent(file.name));
+    xhr.upload.onprogress = ev => {
+      if (!ev.lengthComputable) return;
+      const p = ev.loaded / ev.total * 100;
+      bar.style.width = p + '%';
+      st.textContent = p.toFixed(0) + '%  ·  ' + fmt(ev.loaded / Math.max((Date.now() - t0) / 1000, .001)) + '/s';
+    };
+    xhr.onload = () => {
+      if (xhr.status === 200) { bar.style.width = '100%'; st.innerHTML = '<span class="ok">✔ 已保存到电脑</span>'; resolve(); }
+      else reject('电脑返回 ' + xhr.status);
+    };
+    xhr.onerror = () => reject('网络中断');
+    xhr.send(file);
+  });
+}
+
+async function loadList() {
+  const list = document.getElementById('list');
+  try {
+    const r = await fetch('/list?k=' + KEY, {cache: 'no-store'});
+    if (!r.ok) throw r.status;
+    const data = await r.json();
+    list.innerHTML = data.files.length ? data.files.map(f =>
+      '<div class="item row"><div><div class="name">' + esc(f.p) + '</div><div class="meta">' + fmt(f.s)
+      + '</div></div><a class="dl" href="/dl?k=' + KEY + '&p=' + encodeURIComponent(f.p) + '">下载</a></div>').join('')
+      : '<div class="empty">共享文件夹里还没有文件</div>';
+  } catch (e) {
+    list.innerHTML = '<div class="empty err">读取失败，请确认电脑端仍开着手机互传</div>';
+  }
+}
+loadList();
+</script>
+</body>
+</html>

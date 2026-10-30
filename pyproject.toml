@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kuaichuan"
+version = "1.0.0"
+description = "快传：局域网文件互传工具，支持电脑互传与手机扫码互传，无需服务器、无需安装 App"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.9"
+keywords = ["file-transfer", "lan", "airdrop", "localsend", "qrcode"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Microsoft :: Windows",
+    "Environment :: Win32 (MS Windows)",
+    "Topic :: Communications :: File Sharing",
+]
+dependencies = [
+    "customtkinter>=5.2",
+    "Pillow>=10.0",
+    "segno>=1.6",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0", "pyinstaller>=6.0"]
+
+[project.scripts]
+kuaichuan = "kuaichuan.ui.app:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+kuaichuan = ["assets/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,5 @@
+# 仓库内文本统一 LF；PowerShell 脚本保留 CRLF，图片与图标按二进制处理
+* text=auto eol=lf
+*.ps1 text eol=crlf
+*.png binary
+*.ico binary
